@@ -1,10 +1,15 @@
 import { setupGround, updateGround } from './ground.js'
+import { setupDino, updateDino, getDinoRects, setDinoLose } from './dino.js'
+import { getCactusRects, setupCactus, updateCactus } from './cactus.js'
 
 // responsiveness and scaling
 const WORLD_WIDTH = 100
 const WORLD_HEIGHT = 30
+const SPEED_SCALE_INCREASE = 0.00001
 
 const worldElem = document.querySelector('[data-world]');
+const scoreElem = document.querySelector('[data-score]');
+const startScreenElem = document.querySelector('[data-start-screen]');
 
 setPixelToWorldScale();
 window.addEventListener("resize", setPixelToWorldScale);
@@ -23,6 +28,7 @@ function setPixelToWorldScale() {
 }
 
 let lastTime; 
+let score;
 function update(time) {
     if (lastTime == null) {
         lastTime = time;
@@ -30,10 +36,48 @@ function update(time) {
         return;
     }
     const delta = time - lastTime;
-    updateGround(delta, 1);
+    updateGround(delta, speedScale);
+    updateDino(delta, speedScale);
+    updateCactus(delta, speedScale);
+    updateSpeedScale(delta);
+    updateScore(delta);
+
+    if (checkLose()) {
+        return handleLose();
+    }
 
     lastTime = time;
     window.requestAnimationFrame(update);
+}
+
+function handleLose() {
+    setDinoLose();
+    setTimeout(() => {
+        document.addEventListener("keydown", handleStart, { once: true });
+        startScreenElem.classList.remove("hide");
+    }, 100)
+}
+
+function checkLose() {
+    const dinoRect = getDinoRects();
+    return getCactusRects().some(rect => isCollision(rect, dinoRect));
+}
+
+function isCollision(rect1, rect2) {
+    return (rect1.left < rect2.right 
+        && rect1.top < rect2.bottom 
+        && rect1.right > rect2.left 
+        && rect1.bottom > rect2.top);
+}
+
+// increase speed
+function updateSpeedScale(delta) {
+    speedScale += delta * SPEED_SCALE_INCREASE;
+}
+
+function updateScore(delta) {
+    score += delta * .01
+    scoreElem.textContent = Math.floor(score);
 }
 
 // Start game
@@ -41,6 +85,11 @@ let speedScale;
 function handleStart() {
     lastTime = null;
     speedScale = 1;
+    score = 0
     setupGround();
+    setupDino();
+    setupCactus();
+    // Hiding the starting screen
+    startScreenElem.classList.add("hide")
     window.requestAnimationFrame(update);
 }
